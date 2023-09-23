@@ -6,6 +6,9 @@ import openai, requests
 from tenacity import retry, wait_random_exponential, stop_after_attempt
 import my_secrets as secrets
 import json
+import nltk
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 API_URL = "https://sanchit-gandhi-whisper-jax.hf.space/"
 
@@ -82,7 +85,6 @@ class GPTreq(Resource):
 
 class AudioEndpoint(Resource):
     def post(self):
-        # data = request.content
 
         if 'audioFile' not in request.form:
             val = 'not received'
@@ -102,15 +104,42 @@ class AudioEndpoint(Resource):
         transciber = STT()
         text, runtime = transciber.transcribe(filename)
         print(text)
-        
+
         out = {"text":text, "runtime":runtime}
         return out, 200
 
+class TextAnalysis(Resource):
+    def __init__(self):
+        self.user_text = None
+        self.wizard_text = None
+    
+    def post(self):
+        data = request.json
+        print(data)
+        self.user_text = data["user_text"]
+        self.wizard_text = data["wizard_text"]
 
+        out = {"similarity":self.get_similarity()}
+        
+        return out, 200
+    
+    def get_similarity(self):
+        tokens1 = nltk.word_tokenize(self.user_text)
+        tokens2 = nltk.word_tokenize(self.wizard_text)
+        print(tokens1)
+        print(tokens2)
+
+        vectorizer = CountVectorizer(input='content', stop_words=None, analyzer=lambda x:x, lowercase=False).fit_transform([tokens1, tokens2])
+
+        # Calculate cosine similarity
+        cosine_sim = cosine_similarity(vectorizer)
+        
+        return int(cosine_sim[0][1]*100)
 
 
 api.add_resource(GPTreq, '/gptreq')
 api.add_resource(AudioEndpoint, "/audio")
+api.add_resource(TextAnalysis, "/text-analysis")
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8080, debug=True)
