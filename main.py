@@ -1,7 +1,6 @@
 from flask import Flask, jsonify, request, render_template, make_response
-from flask_restful import reqparse, Resource, Api
+from flask_restful import Resource, Api
 from pybase64 import b64decode
-import os
 from gradio_client import Client
 import openai, requests
 from tenacity import retry, wait_random_exponential, stop_after_attempt
@@ -48,19 +47,21 @@ class ChatCompletion():
             print(f"Exception: {e}")
             return e
 
+class STT():
+    def __init__(self):
+        self.API_URL = "https://sanchit-gandhi-whisper-jax.hf.space/"
+        self.client = Client(self.API_URL)
+
+    def transcribe(self, audio_path):
+        text, runtime = self.client.predict(audio_path, "transcribe",False,api_name="/predict_1")
+        return text, runtime
+
 class GPTreq(Resource):
     """
     A dummy resource. Useful to test in-browser whether cloud deployment was successful.
     """
     def __init__(self):
         self.gpt = ChatCompletion()
-
-    # def get(self):
-    #     headers = {"content-type":"text"}
-    #     default_message = 
-    #     message = self.gpt.chat_completion_request("")
-    #     resp = make_response("hello", 200, headers)
-    #     return resp
 
     def post(self):
         req = request.json
@@ -78,7 +79,38 @@ class GPTreq(Resource):
 
         return out, 200
 
+
+class AudioEndpoint(Resource):
+    def post(self):
+        # data = request.content
+
+        if 'audioFile' not in request.form:
+            val = 'not received'
+            out = {"audio":val}
+
+            return out, 404
+
+        val = "received"
+        data = request.form['audioFile']
+        
+        decoded = b64decode(data)
+        filename = "audio.caf"
+
+        with open(filename, 'wb') as audio_file:
+            audio_file.write(decoded)
+        
+        transciber = STT()
+        text, runtime = transciber.transcribe(filename)
+        print(text)
+        
+        out = {"text":text, "runtime":runtime}
+        return out, 200
+
+
+
+
 api.add_resource(GPTreq, '/gptreq')
+api.add_resource(AudioEndpoint, "/audio")
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8080, debug=True)
