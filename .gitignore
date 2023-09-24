@@ -1,6 +1,8 @@
 # Specific to project
 my_secrets.py
 .DS_Store
+Archive
+tmp
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

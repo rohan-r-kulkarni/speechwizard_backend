@@ -1,0 +1,12 @@
+flask
+flask_restful
+pybase64
+gradio-client
+tenacity
+openai
+requests
+nltk
+scikit-learn
+pandas
+numpy
+tensorflow
